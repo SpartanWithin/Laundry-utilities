@@ -1,0 +1,355 @@
+################################
+#        LAUNDRY PACKAGE       #
+################################
+
+
+# Utilities switch (input_boolean) activating automations and scripts to notify washing machine/tumble dryer finished their work cycle and mark as done when they are emptied.
+# Requires alexa_utils.yaml package from my Alexa Toolbox with "alexa_announce" and "alexa_actionable_notification" scripts
+
+
+
+# INPUTS BOOLEAN
+
+input_boolean:
+
+
+  # washing machine
+  switch_empty_washer:
+    name: Alexa Actionable Notification Switch for emptying washing machine
+    initial: off
+    icon: mdi:washing-machine
+  something_wrong_empty_washer:                      # predisposto in caso servisse
+    name: something got wrong with emptying washing machine
+    initial: off
+    icon: mdi:washing-machine-alert
+
+  # tumble dryer
+  switch_empty_dryer:
+    name: Alexa Actionable Notification Switch for emptying tumble dryer
+    initial: off
+    icon: mdi:tumble-dryer
+  something_wrong_empty_dryer:                       # predisposto in caso servisse
+    name: something got wrong with emptying tumble dryer
+    initial: off
+    icon: mdi:tumble-dryer-alert
+
+
+
+# SWITCHES
+
+switch:
+
+
+  - platform: template
+    switches:
+
+      # emptying washing machine switch
+      washing_machine:
+        friendly_name: washing machine
+        value_template: "{{ is_state('input_boolean.switch_empty_washer', 'on') }}"
+        turn_on:
+          service: input_boolean.turn_on
+          data:
+            entity_id: input_boolean.switch_empty_washer
+        turn_off:
+          service: input_boolean.turn_off
+          data:
+            entity_id: input_boolean.switch_empty_washer
+        icon_template: >-
+          {% if is_state('input_boolean.switch_empty_washer', 'on') %}
+            mdi:washing-machine
+          {% elif is_state('input_boolean.something_wrong_empty_washer', 'on') %}
+            mdi:washing-machine-alert
+          {% else %}
+            mdi:washing-machine-off
+          {% endif %}
+
+      # emptying tumble dryer switch
+      tumble_dryer:
+        friendly_name: tumble dryer
+        value_template: "{{ is_state('input_boolean.switch_empty_dryer', 'on') }}"
+        turn_on:
+          service: input_boolean.turn_on
+          data:
+            entity_id: input_boolean.switch_empty_dryer
+        turn_off:
+          service: input_boolean.turn_off
+          data:
+            entity_id: input_boolean.switch_empty_dryer
+        icon_template: >-
+          {% if is_state('input_boolean.switch_empty_dryer', 'on') %}
+            mdi:tumble-dryer
+          {% elif is_state('input_boolean.something_wrong_empty_dryer', 'on') %}
+            mdi:tumble-dryer-alert
+          {% else %}
+            mdi:tumble-dryer-off
+          {% endif %}
+
+
+
+# SCRIPTS
+
+script:
+
+
+  # activation: ask to mark washing machine as empty [new version with choose and script]
+
+  empty_washer_dryer_activation:
+    alias: "[laundry] empty washing machine/tumble dryer - activation"
+    description: "[laundry] scaricare la lavatrice o l'asciugatrice - attivazione"
+    mode: parallel
+    icon: mdi:washing-machine
+    variables:
+      # message: "{{ \"La lavatrice e l'asciugatrice hanno terminato il ciclo. Vuoi che le segni entrambe come scaricate?\" if is_state('input_boolean.switch_empty_washer', 'on') and is_state('input_boolean.switch_empty_dryer', 'on') else (\"La lavatrice\" if is_state('input_boolean.switch_empty_washer', 'on') and is_state('input_boolean.switch_empty_dryer', 'off') else \"L'asciugatrice\" if is_state('input_boolean.switch_empty_washer', 'off') and is_state('input_boolean.switch_empty_dryer', 'on')) ~ \" ha terminato il suo ciclo. Vuoi che la segni io come scaricata?\" if is_state('input_boolean.switch_empty_washer', 'on') or is_state('input_boolean.switch_empty_dryer', 'on') }}"
+      message_part1: "{{ \"La lavatrice e l'asciugatrice hanno terminato il ciclo.\" if is_state('input_boolean.switch_empty_washer', 'on') and is_state('input_boolean.switch_empty_dryer', 'on') else (\"La lavatrice\" if is_state('input_boolean.switch_empty_washer', 'on') and is_state('input_boolean.switch_empty_dryer', 'off') else \"L'asciugatrice\" if is_state('input_boolean.switch_empty_washer', 'off') and is_state('input_boolean.switch_empty_dryer', 'on')) ~ \" ha terminato il suo ciclo.\" if is_state('input_boolean.switch_empty_washer', 'on') or is_state('input_boolean.switch_empty_dryer', 'on') }}" # Alexa & Telegram
+      message_part2: "{{ \"Vuoi che le segni entrambe come scaricate?\" if is_state('input_boolean.switch_empty_washer', 'on') and is_state('input_boolean.switch_empty_dryer', 'on') else \"Vuoi che la segni io come scaricata?\" if is_state('input_boolean.switch_empty_washer', 'on') or is_state('input_boolean.switch_empty_dryer', 'on') }}"  # Alexa only
+    sequence:
+      # replace with your own Telegram notification system
+      - service: notify.tiger
+        data_template:
+          title: _LAVANDERIA_
+          message: >
+            {{ message_part1 }}
+      - alias: repeat the sequence until the conditions are true
+        repeat:
+          while:
+            # while condition is satisfied (washer or dryer yet loaded)
+            - condition: template
+              value_template: "{{ is_state('input_boolean.switch_empty_washer', 'on') or is_state('input_boolean.switch_empty_dryer', 'on') }}"
+          sequence:
+            # run repeatly a command that for some reason doesn't always work
+            - service: script.activate_alexa_actionable_notification
+              data_template:
+                text: >
+                  {{ message_part1 ~ "<break time='200ms'/>" ~ message_part2 }}
+                event_id: actionable_notification_empty_washer_dryer
+                # replace with your favorite Alexa device(s)
+                alexa_devices: "{{ states.sensor.last_alexa.state }}"
+            # give it some time to complete
+            # - delay:
+            #     minutes: 15
+            - delay: 30
+
+
+  # response yes: washing machine marked as empty [new version with choose and script]
+
+  empty_washer_dryer_responseyes:
+    alias: "[laundry] empty washing machine/tumble dryer - ResponseYes"
+    description: "[laundry] scaricare la lavatrice o l'asciugatrice - risposta positiva"
+    mode: parallel
+    icon: mdi:tumble-dryer
+    variables:
+      message: >
+        {{ "La lavatrice e l'asciugatrice sono state scaricate." if is_state('input_boolean.switch_empty_washer', 'on') and is_state('input_boolean.switch_empty_dryer', 'on') else ("La lavatrice" if is_state('input_boolean.switch_empty_washer', 'on') and is_state('input_boolean.switch_empty_dryer', 'off') else "L'asciugatrice" if is_state('input_boolean.switch_empty_washer', 'off') and is_state('input_boolean.switch_empty_dryer', 'on')) ~ " è stata scaricata." if is_state('input_boolean.switch_empty_washer', 'on') or is_state('input_boolean.switch_empty_dryer', 'on') }}
+    sequence:
+      # replace with your own Telegram notification system
+      - service: notify.tiger
+        data_template:
+          title: _LAVANDERIA_
+          message: >
+            {{ message }}
+      - service: alexa_media.update_last_called # this will force update the last Alexa attribute used by the sensor
+      - delay: 00:00:01 # you may need to increase this value if you don't get the response on the Echo you asked the question
+      - service: script.turn_on
+        entity_id: script.alexa_announce
+        data_template:
+          variables:
+            # replace with your favorite Alexa device(s)
+            alexa_devices: "{{ states.sensor.last_alexa.state }}"
+            volume_level: 0.75
+            type: tts
+            message: >
+              Fatto! <break time='200ms'/>
+              {{ message }}
+      # turn off the boolean to mark the cycle as completed
+      - service: input_boolean.turn_off
+        data:
+          entity_id: "{{ entity_id }}"
+
+
+
+# AUTOMATIONS
+
+automation:
+
+
+  # activation: set an input_boolean on for washing machine/tumble dryer when current electrical absorption is below 100 W for at least 5 minutes
+
+  - id: "laundry-empty_washer_dryer-set"
+    alias: "[laundry] empty washing machine/tumble dryer - set"
+    description: "[laundry] scaricare la lavatrice o l'asciugatrice - attivazione"
+    mode: parallel
+    initial_state: true
+    trigger:
+      - platform: template
+        # change with your own consumption sensors
+        value_template: "{{ states('sensor.shellyswitch25_XXXXXXXXXXXX_channel_1_power') < '100' or states('sensor.shellyswitch25_XXXXXXXXXXXX_channel_2_power') < '100' }}"
+        for:
+          minutes: 5
+    action:
+    - choose:
+      # CASE 0: both washing machine & tumble dryer
+      - conditions:
+          - condition: template
+            value_template: "{{ states('sensor.shellyswitch25_XXXXXXXXXXXX_channel_1_power') < '100' and states('sensor.shellyswitch25_XXXXXXXXXXXX_channel_2_power') < '100' }}"
+        sequence:
+          - service: input_boolean.turn_on
+            data:
+              entity_id: input_boolean.switch_empty_washer, input_boolean.switch_empty_dryer
+      # CASE 1: only washing machine
+      - conditions:
+          # replace with your power consumption sensor
+          # - condition: numeric_state
+          #   entity_id: sensor.shellyswitch25_XXXXXXXXXXXX_channel_1_power
+          #   below: 100
+          - condition: template
+            value_template: "{{ states('sensor.shellyswitch25_XXXXXXXXXXXX_channel_1_power') < '100' }}"
+        sequence:
+          - service: input_boolean.turn_on
+            data:
+              entity_id: input_boolean.switch_empty_washer
+      # CASE 2: only tumble dryer
+      - conditions:
+          # replace with your power consumption sensor
+          # - condition: numeric_state
+          #   entity_id: sensor.shellyswitch25_XXXXXXXXXXXX_channel_2_power
+          #   below: 100
+          - condition: template
+            value_template: "{{ states('sensor.shellyswitch25_XXXXXXXXXXXX_channel_2_power') < '100' }}"
+        sequence:
+          - service: input_boolean.turn_on
+            data:
+              entity_id: input_boolean.switch_empty_dryer
+
+
+  # activation: ask to mark washing machine/tumble dryer as empty
+
+  - id: "laundry-empty_washer_dryer-activation"
+    alias: "[laundry] empty washing machine/tumble dryer - activation"
+    description: "[laundry] scaricare la lavatrice o l'asciugatrice - attivazione"
+    mode: parallel
+    initial_state: true
+    trigger:
+      - platform: template
+        value_template: "{{ is_state('input_boolean.switch_empty_washer', 'on') or is_state('input_boolean.switch_empty_dryer', 'on') }}"
+        for:
+          seconds: 5
+    action:
+    - choose:
+      # CASE 0: both washing machine & tumble dryer
+      - conditions:
+          - condition: template
+            value_template: "{{ is_state('input_boolean.switch_empty_washer', 'on') and is_state('input_boolean.switch_empty_dryer', 'on') }}"
+        sequence:
+          - service: script.empty_washer_dryer_activation
+            # entity_id: input_boolean.switch_empty_washer, input_boolean.switch_empty_dryer
+      # CASE 1: only washing machine
+      - conditions:
+          - condition: template
+            value_template: "{{ is_state('input_boolean.switch_empty_washer', 'on') }}"
+        sequence:
+          - service: script.empty_washer_dryer_activation
+            # entity_id: input_boolean.switch_empty_washer
+      # CASE 2: only tumble dryer
+      - conditions:
+          - condition: template
+            value_template: "{{ is_state('input_boolean.switch_empty_dryer', 'on') }}"
+        sequence:
+          - service: script.empty_washer_dryer_activation
+            # entity_id: input_boolean.switch_empty_dryer
+
+
+  # ResponseYes: washing machine marked as empty [new version with choose and script]
+
+  - id: "laundry-empty_washer_dryer-ResponseYes"
+    alias: "[laundry] empty washing machine/tumble dryer - ResponseYes"
+    description: "[laundry] scaricare la lavatrice o l'asciugatrice - risposta positiva"
+    mode: parallel
+    initial_state: true
+    trigger:
+      platform: event
+      event_type: alexa_actionable_notification
+      event_data:
+        event_id: actionable_notification_empty_washer_dryer
+        event_response_type: ResponseYes
+    action:
+      - choose:
+        # CASE 0: both washing machine & tumble dryer
+        - conditions:
+            - condition: template
+              value_template: "{{ is_state('input_boolean.switch_empty_washer', 'on') and is_state('input_boolean.switch_empty_dryer', 'on') }}"
+          sequence:
+            - service: script.empty_washer_dryer_responseyes
+              entity_id: input_boolean.switch_empty_washer, input_boolean.switch_empty_dryer
+        # CASE 1: only washing machine
+        - conditions:
+            - condition: template
+              value_template: "{{ is_state('input_boolean.switch_empty_washer', 'on') and is_state('input_boolean.switch_empty_dryer', 'off') }}"
+          sequence:
+            - service: script.empty_washer_dryer_responseyes
+              entity_id: input_boolean.switch_empty_washer
+        # CASE 2: only tumble dryer
+        - conditions:
+            - condition: template
+              value_template: "{{ is_state('input_boolean.switch_empty_washer', 'off') and is_state('input_boolean.switch_empty_dryer', 'on') }}"
+          sequence:
+            - service: script.empty_washer_dryer_responseyes
+              entity_id: input_boolean.switch_empty_dryer
+
+
+  # ResponseNo: washing machine marked as not empty
+
+  - id: "laundry-empty_washer_dryer-ResponseNo"
+    alias: "[laundry] empty washing machine/tumble dryer - ResponseNo"
+    description: "[laundry] scaricare la lavatrice o l'asciugatrice - risposta negativa"
+    mode: parallel
+    initial_state: true
+    trigger:
+      platform: event
+      event_type: alexa_actionable_notification
+      event_data:
+        event_id: actionable_notification_empty_washer_dryer
+        event_response_type: ResponseNo
+    action:
+      # force update the last Alexa attribute used by the sensor
+      - service: alexa_media.update_last_called
+      # you may need to increase this value if you don't get the response on the Echo you asked the question
+      - delay: 00:00:01
+      - service: script.turn_on
+        entity_id: script.alexa_announce
+        data_template:
+          variables:
+            # replace with your favorite Alexa device(s) and settings
+            alexa_devices: "{{ states.sensor.last_alexa.state }}"
+            volume_level: 0.5
+            type: tts
+            method: spoken
+            message: "D'accordo, te lo richiederò tra 15 minuti, sempre che nel frattempo non l'abbia già fatto qualcun'altro."
+
+
+  # ResponseNone: washing machine not marked as empty
+
+  - id: "laundry-empty_washer_dryer-ResponseNone"
+    alias: "[laundry] empty washing machine/tumble dryer - ResponseNone"
+    description: "[laundry] scaricare la lavatrice o l'asciugatrice - nessuna risposta"
+    mode: parallel
+    initial_state: true
+    trigger:
+      platform: event
+      event_type: alexa_actionable_notification
+      event_data:
+        event_id: actionable_notification_empty_washer_dryer
+        event_response_type: ResponseNone
+    action:
+      - service: alexa_media.update_last_called #this will force update the last Alexa attribute used by the sensor
+      - delay: 00:00:01 # you may need to increase this value if you dont get the response on the echo you asked the question
+      - service: script.turn_on
+        entity_id: script.alexa_announce
+        data_template:
+          variables:
+            # replace with your favorite Alexa device(s) and settings
+            alexa_devices: "{{ states.sensor.last_alexa.state }}"
+            volume_level: 0.5
+            type: tts
+            method: spoken
+            message: "Non mi hai risposto. <break time='200ms'/> Te lo chiederò ancora tra 15 minuti, se nessuno l'avrà già fatto nel frattempo."
