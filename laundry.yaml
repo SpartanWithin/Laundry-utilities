@@ -333,7 +333,7 @@ automation:
           variables:
             # replace with your favorite Alexa device(s) and settings
             alexa_devices: "{{ states.sensor.last_alexa.state }}"
-            volume_level: 0.5
+            volume_level: 0.75
             type: tts
             method: spoken
             message: "D'accordo, te lo richiederò tra 15 minuti, sempre che nel frattempo non l'abbia già fatto qualcun'altro."
@@ -364,7 +364,7 @@ automation:
           variables:
             # replace with your favorite Alexa device(s) and settings
             alexa_devices: "{{ states.sensor.last_alexa.state }}"
-            volume_level: 0.5
+            volume_level: 0.75
             type: tts
             method: spoken
             message: "Non mi hai risposto. <break time='200ms'/> Te lo chiederò ancora tra 15 minuti, se nessuno l'avrà già fatto nel frattempo."
