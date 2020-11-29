@@ -118,7 +118,7 @@ script:
               value_template: "{{ is_state('input_boolean.switch_empty_washer', 'on') or is_state('input_boolean.switch_empty_dryer', 'on') }}"
           sequence:
             # run repeatly a command that for some reason doesn't always work
-            - service: script.activate_alexa_actionable_notification
+            - service: script.alexa_actionable_notification_holder
               data_template:
                 text: >
                   {{ message_part1 ~ "<break time='200ms'/>" ~ message_part2 }}
