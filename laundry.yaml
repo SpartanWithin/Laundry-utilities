@@ -5,7 +5,7 @@
 
 
 # Utilities switch (input_boolean) activating automations and scripts to notify washing machine/tumble dryer finished their work cycle and mark as done when they are emptied.
-# Requires alexa_utils.yaml package from my Alexa Toolbox with "alexa_announce" and "alexa_actionable_notification" scripts
+# Requires alexa_utils.yaml package from my "Alexa Toolbox" repository with "alexa_announce" and "alexa_actionable_notification" scripts
 
 
 
@@ -125,12 +125,12 @@ script:
             # run repeatly a command that for some reason doesn't always work
             - service: script.alexa_actionable_notification_holder
               data:
-                text: >
-                  {{ message_part1 ~ "<break time='200ms'/>" ~ message_part2 }}
-                event_id: actionable_notification_empty_washer_dryer
                 # replace with your favorite Alexa device(s)
                 alexa_devices: "{{ states.sensor.last_alexa.state }}"
                 volume_level: 0.75
+                text: >
+                  {{ message_part1 ~ "<break time='200ms'/>" ~ message_part2 }}
+                event_id: actionable_notification_empty_washer_dryer
             - delay:
                 minutes: 15
 
